@@ -1276,11 +1276,14 @@
             filterContacts();
         }
 
+        // دالة البحث المحسنة (تفحص الاسم واسم المستخدم)
         function filterContacts() {
             if (!searchInput) return;
             const searchTerm = searchInput.value.trim().toLowerCase();
             const activeTab = document.querySelector('.tab-btn.active').textContent.includes('الكل') ? 'all' :
                               document.querySelector('.tab-btn.active').textContent.includes('متصل') ? 'online' : 'groups';
+            
+            console.log('🔍 البحث عن:', searchTerm, 'في التبويب:', activeTab);
             renderContactsList(searchTerm, activeTab);
         }
 
@@ -1316,17 +1319,20 @@
 
                 const userDoc = await db.ref('users/' + user.uid).once('value');
                 if (userDoc.exists()) {
+                    // مستخدم مكتمل
                     loginScreen.style.display = 'none';
                     profileSetupScreen.style.display = 'none';
                     profileEditScreen.style.display = 'none';
                     initializeApp();
                 } else {
+                    // مستخدم جديد
                     loginScreen.style.display = 'none';
                     profileSetupScreen.style.display = 'flex';
                     profileEditScreen.style.display = 'none';
                     if (setupName) setupName.value = user.displayName || '';
                 }
             } else {
+                // لا يوجد مستخدم
                 currentUser = null;
                 currentUserId = null;
                 loginScreen.style.display = 'flex';
@@ -1372,6 +1378,7 @@
                 if (btn) btn.disabled = true;
                 return;
             }
+            // إذا كان في وضع التعديل والاسم هو نفسه الاسم الحالي، نعتبره متاحاً
             if (mode === 'edit' && allUsers[currentUserId] && allUsers[currentUserId].username === username) {
                 if (availabilityDiv) availabilityDiv.innerHTML = '<span style="color: #22c55e;">✔️ اسمك الحالي</span>';
                 if (btn) btn.disabled = false;
@@ -1521,7 +1528,8 @@
         function initializeApp() {
             db.ref('users').on('value', (snapshot) => {
                 allUsers = snapshot.val() || {};
-                filterContacts();
+                console.log('🔄 تحديث allUsers:', allUsers);
+                filterContacts(); // تحديث القائمة بعد تحميل البيانات
                 if (myAvatar && allUsers[currentUserId]) {
                     if (allUsers[currentUserId].avatar) {
                         myAvatar.innerHTML = `<img src="${allUsers[currentUserId].avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
@@ -1549,24 +1557,38 @@
 
         // ================== دوال الدردشة ==================
         function renderContactsList(searchTerm = '', filter = 'all') {
-            if (!contactsList || !allUsers || !currentUserId) return;
+            if (!contactsList || !allUsers || !currentUserId) {
+                console.log('⚠️ لا يمكن عرض القائمة: بيانات ناقصة');
+                return;
+            }
+
             let html = '';
             const usersArray = Object.entries(allUsers).filter(([uid, user]) => uid !== currentUserId);
             
+            console.log('📋 عدد المستخدمين الآخرين:', usersArray.length);
+
+            if (usersArray.length === 0) {
+                contactsList.innerHTML = '<div style="color: var(--text-light); text-align: center; padding: 20px;">لا يوجد مستخدمين آخرين</div>';
+                return;
+            }
+
             usersArray.forEach(([uid, user]) => {
+                // البحث في الاسم واسم المستخدم
                 const nameMatch = user.name && user.name.toLowerCase().includes(searchTerm);
                 const usernameMatch = user.username && user.username.toLowerCase().includes(searchTerm);
                 const matchesSearch = searchTerm === '' || nameMatch || usernameMatch;
-                
+
                 if (!matchesSearch) return;
+
                 if (filter === 'online' && !user.online) return;
-                if (filter === 'groups') return;
-                
+                if (filter === 'groups') return; // تجاهل المجموعات حالياً
+
                 const statusClass = user.online ? 'online' : 'offline';
                 const lastMsgData = lastMessagesCache[uid] || {};
                 const lastMsgText = lastMsgData.text || 'لا توجد رسائل';
                 const lastMsgTime = lastMsgData.timestamp ? new Date(lastMsgData.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
                 const avatarHtml = user.avatar ? `<img src="${user.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '😎';
+                
                 html += `<div class="contact-item" onclick="openChat('${uid}')">
                     <div class="contact-avatar">${avatarHtml}<span class="status-dot ${statusClass}"></span></div>
                     <div class="contact-info">
@@ -1576,8 +1598,14 @@
                     <div class="contact-meta"><span class="msg-time">${lastMsgTime}</span></div>
                 </div>`;
             });
+
+            if (html === '') {
+                contactsList.innerHTML = '<div style="color: var(--text-light); text-align: center; padding: 20px;">لا توجد نتائج للبحث</div>';
+            } else {
+                contactsList.innerHTML = html;
+            }
             
-            contactsList.innerHTML = html || '<div style="color: var(--text-light); text-align: center; padding: 20px;">لا يوجد مستخدمين</div>';
+            console.log('✅ تم عرض', (html.match(/contact-item/g) || []).length, 'مستخدم');
         }
 
         function openChat(otherUid) {
