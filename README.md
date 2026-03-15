@@ -11,12 +11,1008 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
-        /* جميع الأنماط (كما هي في الرد السابق) - أضعها كاملة هنا للاختصار */
-        /* ... (نفس الـ styles السابقة) ... */
+        /* ========== المتغيرات والأساسيات ========== */
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #6366f1;
+            --primary-dark: #3730a3;
+            --bg-dark: #0f172a;
+            --bg-sidebar: #1e293b;
+            --bg-chat: #f1f5f9;
+            --bg-white: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-light: #94a3b8;
+            --sent-bubble: linear-gradient(135deg, #4f46e5, #7c3aed);
+            --received-bubble: #ffffff;
+            --green: #22c55e;
+            --red: #ef4444;
+            --orange: #f59e0b;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg-dark);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            font-size: 16px;
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            background: var(--bg-dark);
+        }
+
+        /* ========== شاشات الدخول والإعداد المشتركة ========== */
+        .login-screen, .profile-setup-screen, .profile-edit-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .login-screen.hidden, .profile-setup-screen.hidden, .profile-edit-screen.hidden {
+            display: none;
+        }
+
+        .login-box {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 2rem;
+            padding: clamp(1.5rem, 5vw, 3rem) clamp(1rem, 4vw, 2.5rem);
+            width: min(420px, 95%);
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .login-box .logo {
+            font-size: clamp(3rem, 10vw, 4rem);
+            margin-bottom: 0.5rem;
+        }
+
+        .login-box h1 {
+            color: #fff;
+            font-size: clamp(1.5rem, 6vw, 2rem);
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .login-box p {
+            color: var(--text-light);
+            font-size: clamp(0.85rem, 3vw, 1rem);
+            margin-bottom: 1.5rem;
+        }
+
+        .login-btn, .action-btn {
+            width: 100%;
+            padding: 0.9rem 1rem;
+            background: var(--sent-bubble);
+            border: none;
+            border-radius: 3rem;
+            color: #fff;
+            font-family: 'Tajawal', sans-serif;
+            font-size: clamp(0.9rem, 4vw, 1.1rem);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            margin-top: 0.8rem;
+        }
+
+        .login-btn:hover, .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+        }
+
+        .login-btn:disabled, .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: right;
+        }
+
+        .input-group label {
+            color: var(--text-light);
+            font-size: 0.85rem;
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 2rem;
+            color: #fff;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            background: rgba(255,255,255,0.12);
+        }
+
+        #usernameAvailability, #editUsernameAvailability {
+            font-size: 0.8rem;
+            margin-top: 0.3rem;
+            text-align: right;
+        }
+
+        .image-picker {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+
+        .image-preview {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px solid var(--primary);
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-preview span {
+            color: var(--text-light);
+            font-size: 0.75rem;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: 2px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 0.6rem 1rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* ========== الشريط الجانبي ========== */
+        .sidebar {
+            width: min(360px, 80%);
+            background: var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+            height: 100%;
+            position: relative;
+            z-index: 100;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 85%;
+                max-width: 300px;
+                transform: translateX(100%);
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+        }
+
+        .sidebar-header {
+            padding: 1.2rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            cursor: pointer;
+        }
+
+        .user-avatar {
+            width: 2.8rem;
+            height: 2.8rem;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            overflow: hidden;
+            border: 2px solid var(--primary-light);
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-name {
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .user-status-text {
+            color: var(--green);
+            font-size: 0.75rem;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 0.3rem;
+        }
+
+        .sidebar-actions button {
+            background: rgba(255,255,255,0.06);
+            border: none;
+            color: var(--text-light);
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.8rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+
+        .sidebar-actions button:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+        }
+
+        .search-container {
+            padding: 0.8rem 1rem;
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 0.7rem 2.5rem 0.7rem 1rem;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 2rem;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-container input:focus {
+            border-color: var(--primary);
+            background: rgba(255,255,255,0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+
+        .tabs {
+            display: flex;
+            padding: 0 1rem;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 2rem;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: rgba(79, 70, 229, 0.2);
+            color: var(--primary-light);
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .contacts-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .contacts-list::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .contacts-list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            margin-bottom: 0.2rem;
+        }
+
+        .contact-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .contact-item.active {
+            background: rgba(79, 70, 229, 0.15);
+        }
+
+        .contact-avatar {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-left: 0.8rem;
+            position: relative;
+            overflow: hidden;
+            background: rgba(79,70,229,0.2);
+        }
+
+        .contact-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .status-dot {
+            position: absolute;
+            bottom: 0.1rem;
+            right: 0.1rem;
+            width: 0.8rem;
+            height: 0.8rem;
+            border-radius: 50%;
+            border: 2px solid var(--bg-sidebar);
+        }
+
+        .status-dot.online { background: var(--green); }
+        .status-dot.offline { background: var(--text-light); }
+
+        .contact-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .contact-info .contact-name {
+            color: #e2e8f0;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+
+        .contact-info .contact-last-msg {
+            color: var(--text-light);
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .contact-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+
+        .contact-meta .msg-time {
+            color: var(--text-light);
+            font-size: 0.7rem;
+        }
+
+        /* ========== منطقة الدردشة الرئيسية ========== */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-chat);
+            height: 100%;
+        }
+
+        /* شاشة الترحيب */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            text-align: center;
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        }
+
+        .welcome-screen .welcome-icon {
+            font-size: clamp(4rem, 15vw, 6rem);
+            margin-bottom: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .welcome-screen h2 {
+            font-size: clamp(1.3rem, 6vw, 2rem);
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-weight: 800;
+        }
+
+        .welcome-screen p {
+            color: var(--text-secondary);
+            font-size: clamp(0.9rem, 4vw, 1.1rem);
+            max-width: 90%;
+            line-height: 1.6;
+        }
+
+        /* رأس الدردشة */
+        .chat-header {
+            padding: 0.8rem 1rem;
+            background: var(--bg-white);
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            gap: 0.5rem;
+            z-index: 10;
+        }
+
+        .chat-header .back-btn,
+        .chat-header .menu-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.2rem;
+            height: 2.2rem;
+            border-radius: 0.5rem;
+            transition: background 0.3s;
+        }
+
+        .chat-header .back-btn:hover,
+        .chat-header .menu-btn:hover {
+            background: var(--bg-chat);
+        }
+
+        .back-btn { display: none; }
+        .menu-btn { display: none; }
+
+        @media (max-width: 768px) {
+            .back-btn { display: block; }
+            .menu-btn { display: block; }
+        }
+
+        .header-avatar {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: rgba(79,70,229,0.2);
+        }
+
+        .header-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .header-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .header-status {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .header-status.online { color: var(--green); }
+        .header-status.offline { color: var(--text-light); }
+        .header-status.typing { color: var(--primary); }
+
+        .header-buttons {
+            display: flex;
+            gap: 0.3rem;
+        }
+
+        .header-buttons button {
+            background: var(--bg-chat);
+            border: none;
+            width: 2.2rem;
+            height: 2.2rem;
+            border-radius: 0.8rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            transition: all 0.3s;
+        }
+
+        .header-buttons button:hover {
+            background: #e2e8f0;
+        }
+
+        /* منطقة الرسائل */
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .messages-area::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .messages-area::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.12);
+            border-radius: 10px;
+        }
+
+        .date-separator {
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .date-separator span {
+            background: rgba(0,0,0,0.06);
+            color: var(--text-secondary);
+            padding: 0.3rem 1.2rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
+            animation: msgSlide 0.35s ease-out;
+        }
+
+        @keyframes msgSlide {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-wrapper.sent { align-items: flex-end; }
+        .message-wrapper.received { align-items: flex-start; }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 0.7rem 1rem;
+            border-radius: 1.5rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .message-bubble {
+                max-width: 60%;
+            }
+        }
+
+        .message-wrapper.sent .message-bubble {
+            background: var(--sent-bubble);
+            color: #fff;
+            border-bottom-left-radius: 0.5rem;
+            box-shadow: 0 3px 12px rgba(79, 70, 229, 0.25);
+        }
+
+        .message-wrapper.received .message-bubble {
+            background: var(--bg-white);
+            color: var(--text-primary);
+            border-bottom-right-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .message-bubble .sender-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 0.2rem;
+            display: block;
+        }
+
+        .message-wrapper.received .sender-name { color: var(--primary); }
+
+        .msg-time {
+            font-size: 0.7rem;
+            margin-top: 0.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .message-wrapper.sent .msg-time { color: rgba(255,255,255,0.7); }
+        .message-wrapper.received .msg-time { color: var(--text-light); }
+
+        .msg-check {
+            font-size: 0.8rem;
+        }
+
+        /* مؤشر الكتابة */
+        .typing-bubble {
+            display: none;
+            align-self: flex-start;
+            background: var(--bg-white);
+            padding: 0.8rem 1.2rem;
+            border-radius: 1.5rem;
+            border-bottom-right-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .typing-bubble.show {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .typing-bubble .dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            background: var(--text-light);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite;
+        }
+
+        .typing-bubble .dot:nth-child(2) { animation-delay: 0.15s; }
+        .typing-bubble .dot:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /* حقل الإدخال */
+        .message-input-area {
+            padding: 0.8rem 1rem;
+            background: var(--bg-white);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 0.2rem;
+        }
+
+        .input-actions button {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 0.3rem;
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            transition: background 0.3s;
+        }
+
+        .input-actions button:hover {
+            background: var(--bg-chat);
+        }
+
+        .msg-input {
+            flex: 1;
+            padding: 0.7rem 1.2rem;
+            background: var(--bg-chat);
+            border: 2px solid transparent;
+            border-radius: 2rem;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s;
+            color: var(--text-primary);
+        }
+
+        .msg-input:focus {
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        .send-btn {
+            width: 2.8rem;
+            height: 2.8rem;
+            background: var(--sent-bubble);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.35);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ========== الإيموجي بيكر ========== */
+        .emoji-picker {
+            display: none;
+            position: absolute;
+            bottom: 5rem;
+            right: 1rem;
+            background: var(--bg-white);
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            padding: 1rem;
+            width: min(320px, 90%);
+            z-index: 200;
+            animation: slideUp 0.3s ease;
+        }
+
+        .emoji-picker.show {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.3rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .emoji-grid::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .emoji-grid::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+
+        .emoji-item {
+            font-size: 1.4rem;
+            padding: 0.3rem;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .emoji-item:hover {
+            background: var(--bg-chat);
+            transform: scale(1.2);
+        }
+
+        /* ========== النوافذ المنبثقة ========== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--bg-white);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            width: min(400px, 95%);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-box h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .modal-box input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 2rem;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            margin-bottom: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .modal-box input:focus {
+            border-color: var(--primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: center;
+        }
+
+        .modal-actions button {
+            padding: 0.7rem 1.5rem;
+            border-radius: 2rem;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            flex: 1;
+        }
+
+        .modal-actions .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .modal-actions .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .modal-actions .btn-secondary {
+            background: var(--bg-chat);
+            color: var(--text-secondary);
+        }
+
+        .modal-actions .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        /* ========== الإشعار ========== */
+        .notification {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--bg-white);
+            padding: 0.8rem 1.5rem;
+            border-radius: 3rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            z-index: 9999;
+            transition: transform 0.4s ease;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .notif-avatar {
+            width: 2.2rem;
+            height: 2.2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: rgba(79,70,229,0.2);
+        }
+
+        .notif-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .notif-avatar span {
+            font-size: 1.2rem;
+        }
     </style>
 </head>
 <body>
-
+    <!-- ========== المحتوى (HTML) ========== -->
     <!-- شاشة تسجيل الدخول عبر Google -->
     <div class="login-screen" id="loginScreen">
         <div class="login-box">
@@ -129,16 +1125,21 @@
                 <button class="tab-btn" onclick="switchTab(this, 'online')">متصل</button>
                 <button class="tab-btn" onclick="switchTab(this, 'groups')">مجموعات</button>
             </div>
-            <div class="contacts-list" id="contactsList"></div>
+            <div class="contacts-list" id="contactsList">
+                <!-- سيتم ملؤها عبر JavaScript -->
+            </div>
         </div>
 
         <!-- منطقة الدردشة -->
         <div class="chat-main" id="chatMain">
+            <!-- الشاشة الترحيبية -->
             <div class="welcome-screen" id="welcomeScreen">
                 <div class="welcome-icon">💬</div>
                 <h2>مرحباً بك في شات لايف</h2>
                 <p>اختر محادثة من القائمة أو ابدأ محادثة جديدة مع أصدقائك</p>
             </div>
+
+            <!-- رأس الدردشة (يظهر عند فتح محادثة) -->
             <div class="chat-header" id="chatHeader" style="display: none;">
                 <button class="back-btn" onclick="goBack()">→</button>
                 <button class="menu-btn" onclick="toggleSidebar()">☰</button>
@@ -152,12 +1153,18 @@
                     <button onclick="openChatSettings()">⚙️</button>
                 </div>
             </div>
+
+            <!-- منطقة عرض الرسائل -->
             <div class="messages-area" id="messagesArea"></div>
+
+            <!-- مؤشر الكتابة -->
             <div class="typing-bubble" id="typingIndicator">
                 <span class="dot"></span>
                 <span class="dot"></span>
                 <span class="dot"></span>
             </div>
+
+            <!-- حقل إدخال الرسالة -->
             <div class="message-input-area" id="messageInputArea" style="display: none;">
                 <div class="input-actions">
                     <button onclick="toggleEmojiPicker()">😊</button>
@@ -269,13 +1276,11 @@
             filterContacts();
         }
 
-        // تحسين دالة filterContacts مع سجلات للمساعدة في التصحيح
         function filterContacts() {
             if (!searchInput) return;
             const searchTerm = searchInput.value.trim().toLowerCase();
             const activeTab = document.querySelector('.tab-btn.active').textContent.includes('الكل') ? 'all' :
                               document.querySelector('.tab-btn.active').textContent.includes('متصل') ? 'online' : 'groups';
-            console.log('Filtering with term:', searchTerm, 'tab:', activeTab);
             renderContactsList(searchTerm, activeTab);
         }
 
@@ -311,13 +1316,11 @@
 
                 const userDoc = await db.ref('users/' + user.uid).once('value');
                 if (userDoc.exists()) {
-                    // مستخدم مكتمل
                     loginScreen.style.display = 'none';
                     profileSetupScreen.style.display = 'none';
                     profileEditScreen.style.display = 'none';
                     initializeApp();
                 } else {
-                    // مستخدم جديد
                     loginScreen.style.display = 'none';
                     profileSetupScreen.style.display = 'flex';
                     profileEditScreen.style.display = 'none';
@@ -369,7 +1372,6 @@
                 if (btn) btn.disabled = true;
                 return;
             }
-            // إذا كان في وضع التعديل والاسم هو نفسه الاسم الحالي، نعتبره متاحاً
             if (mode === 'edit' && allUsers[currentUserId] && allUsers[currentUserId].username === username) {
                 if (availabilityDiv) availabilityDiv.innerHTML = '<span style="color: #22c55e;">✔️ اسمك الحالي</span>';
                 if (btn) btn.disabled = false;
@@ -446,15 +1448,13 @@
             }
         }
 
-        // ================== فتح وتعديل البروفايل (تم إصلاحها) ==================
+        // ================== فتح وتعديل البروفايل ==================
         function openProfileEdit() {
-            console.log('openProfileEdit called, currentUserId:', currentUserId);
             if (!currentUserId) {
                 alert('يجب تسجيل الدخول أولاً');
                 return;
             }
             if (!allUsers[currentUserId]) {
-                console.log('User data not loaded yet, allUsers:', allUsers);
                 alert('بيانات المستخدم لم تحمل بعد، حاول مرة أخرى');
                 return;
             }
@@ -521,7 +1521,6 @@
         function initializeApp() {
             db.ref('users').on('value', (snapshot) => {
                 allUsers = snapshot.val() || {};
-                console.log('allUsers updated:', allUsers);
                 filterContacts();
                 if (myAvatar && allUsers[currentUserId]) {
                     if (allUsers[currentUserId].avatar) {
@@ -550,24 +1549,18 @@
 
         // ================== دوال الدردشة ==================
         function renderContactsList(searchTerm = '', filter = 'all') {
-            if (!contactsList || !allUsers || !currentUserId) {
-                console.log('renderContactsList: missing data', { contactsList, allUsers, currentUserId });
-                return;
-            }
-            console.log('Rendering contacts, allUsers:', allUsers, 'currentUserId:', currentUserId);
+            if (!contactsList || !allUsers || !currentUserId) return;
             let html = '';
             const usersArray = Object.entries(allUsers).filter(([uid, user]) => uid !== currentUserId);
-            console.log('usersArray:', usersArray);
             
             usersArray.forEach(([uid, user]) => {
-                // تحسين البحث: البحث في الاسم واسم المستخدم
                 const nameMatch = user.name && user.name.toLowerCase().includes(searchTerm);
                 const usernameMatch = user.username && user.username.toLowerCase().includes(searchTerm);
                 const matchesSearch = searchTerm === '' || nameMatch || usernameMatch;
                 
                 if (!matchesSearch) return;
                 if (filter === 'online' && !user.online) return;
-                if (filter === 'groups') return; // تجاهل المجموعات حالياً
+                if (filter === 'groups') return;
                 
                 const statusClass = user.online ? 'online' : 'offline';
                 const lastMsgData = lastMessagesCache[uid] || {};
@@ -585,7 +1578,6 @@
             });
             
             contactsList.innerHTML = html || '<div style="color: var(--text-light); text-align: center; padding: 20px;">لا يوجد مستخدمين</div>';
-            console.log('Contacts list updated, HTML length:', html.length);
         }
 
         function openChat(otherUid) {
@@ -745,7 +1737,7 @@
 
         function attachFile() { alert('خاصية إرفاق الملفات قيد التطوير'); }
 
-        // ================== تحسين المجموعات ==================
+        // ================== المجموعات ==================
         function openNewGroupModal() { 
             const modal = document.getElementById('groupModal');
             if (modal) modal.classList.add('show'); 
@@ -760,7 +1752,6 @@
                 alert('الرجاء إدخال اسم المجموعة'); 
                 return; 
             }
-            // يمكنك لاحقاً إضافة منطق حقيقي لإنشاء المجموعات
             alert('سيتم تفعيل المجموعات قريباً، شكراً لاهتمامك!');
             closeGroupModal();
         }
